@@ -1,0 +1,81 @@
+# ---------------------------
+# Python / Env
+# ---------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+*.pickle
+
+.env
+*.env
+.env.*
+
+# Virtual environments
+venv/
+.venv/
+env/
+sap/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# VSCode / PyCharm
+.vscode/
+.idea/
+
+# ---------------------------
+# Cache / Logs
+# ---------------------------
+*.log
+*.tmp
+*.DS_Store
+
+# HuggingFace cache
+.huggingface/
+
+# Transformers / HF caches
+cache/
+~/.cache/
+
+# ---------------------------
+# Model directories (DO NOT COMMIT MODELS)
+# ---------------------------
+backend/models/
+models/
+*.json
+*.safetensors
+*.bin
+*.pt
+
+# ---------------------------
+# Vector Stores (FAISS)
+# ---------------------------
+backend/vector_stores/
+*.index
+*.faiss
+*.hnsw
+
+# ---------------------------
+# Large data
+# ---------------------------
+data/images/
+data/*.pdf
+data/*.shp
+data/*.dbf
+data/*.gdb
+data/*.tif
+
+# Plant metadata allowed?
+#   (If you want plant_data.json committed, remove this next line)
+data/*.json
+
+# ---------------------------
+# Build / Dist
+# ---------------------------
+dist/
+build/
+*.egg-info/
+
+./env
