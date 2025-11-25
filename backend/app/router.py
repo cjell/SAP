@@ -1,7 +1,4 @@
-from __future__ import annotations
-
 from typing import Optional, Dict, Any, List
-
 from PIL import Image
 
 from .llava_next import LLaVANextCaptioner
@@ -12,16 +9,10 @@ from .rrf import fuse_results_rrf
 
 
 class Router:
-    def __init__(self) -> None:
-        self.llava = LLaVANextCaptioner(
-            model_path="backend/models/llava-next"
-        )
-        self.text_embedder = TextEmbedder(
-            model_path="backend/models/text"
-        )
-        self.dino = DinoV2(
-            model_path="backend/models/dino"
-        )
+    def __init__(self):
+        self.llava = LLaVANextCaptioner(model_path="backend/models/llava-next")
+        self.text_embedder = TextEmbedder(model_path="backend/models/text")
+        self.dino = DinoV2(model_path="backend/models/dino")
 
         self.retriever = Retriever(
             text_embedder=self.text_embedder,
@@ -31,66 +22,72 @@ class Router:
 
     def handle_query(
         self,
-        text: Optional[str] = None,
-        image: Optional[Image.Image] = None,
+        text: Optional[str],
+        image: Optional[Image.Image],
         top_k: int = 5
     ) -> Dict[str, Any]:
 
-        text = (text or "").strip()
-        has_text = len(text) > 0
+        has_text = bool(text and text.strip())
         has_image = image is not None
-
-        if not has_text and not has_image:
-            return {
-                "mode": "empty",
-                "message": "No text or image provided.",
-            }
-
-        mode: str
         caption: Optional[str] = None
 
+        identified_plant: Optional[Dict[str, Any]] = None
+        fused_ranked: List[Dict[str, Any]] = []
+
+
         if has_image:
-            mode = "image" if not has_text else "image+text"
+            mode = "image+text" if has_text else "image"
+
             caption = self.llava.caption(image)
+
+            image_results = self.retriever.search_image(image, top_k)
+            caption_results = self.retriever.search_caption(caption, top_k)
+
+            arms_for_id = {
+                "image": image_results,
+                "caption": caption_results,
+            }
+            fused_for_id = fuse_results_rrf(arms_for_id, k_rrf=60)
+
+            chosen_plant_id = None
+            chosen_plant_name = None
+            for item in fused_for_id:
+                pid = item.get("plant_id")
+                pname = item.get("plant_name")
+                if pid or pname:
+                    chosen_plant_id = pid
+                    chosen_plant_name = pname
+                    break
+
+            plant_metadata_items: List[Dict[str, Any]] = []
+            if chosen_plant_id:
+                for meta in self.retriever.text_metadata:
+                    if meta.get("plant_id") == chosen_plant_id:
+                        enriched = dict(meta)
+                        enriched["source"] = enriched.get("source", "plant_metadata")
+                        enriched["id"] = enriched.get("id", f"plant_{chosen_plant_id}")
+                        enriched.setdefault("rank", 0)
+                        enriched.setdefault("faiss_distance", 0.0)
+                        plant_metadata_items.append(enriched)
+
+                if plant_metadata_items:
+                    identified_plant = plant_metadata_items[0]
+
+            fused_ranked = plant_metadata_items
+
+
         else:
             mode = "text"
-
-        arm_results: Dict[str, List[Dict[str, Any]]] = {
-            "text": [],
-            "caption": [],
-            "image": [],
-        }
-
-        if mode == "text":
-            arm_results["text"] = self.retriever.search_text(text, top_k=top_k)
-            arm_results["caption"] = self.retriever.search_caption(text, top_k=top_k)
-
-        elif mode == "image":
-            arm_results["image"] = self.retriever.search_image(image, top_k=top_k)
-
-            if caption:
-                arm_results["caption"] = self.retriever.search_caption(caption, top_k=top_k)
-                arm_results["text"] = self.retriever.search_text(caption, top_k=top_k)
-
-        else:
-            arm_results["image"] = self.retriever.search_image(image, top_k=top_k)
-            if caption:
-                arm_results["caption"] = self.retriever.search_caption(caption, top_k=top_k)
-                arm_results["text"] = self.retriever.search_text(
-                    text + " " + caption,
-                    top_k=top_k
-                )
+            if has_text:
+                text_results = self.retriever.search_text(text, top_k)
+                fused_ranked = fuse_results_rrf({"text": text_results}, k_rrf=60)
             else:
-                arm_results["caption"] = self.retriever.search_caption(text, top_k=top_k)
-                arm_results["text"] = self.retriever.search_text(text, top_k=top_k)
-
-        fused = fuse_results_rrf(arm_results, k_rrf=60)
+                fused_ranked = []
 
 
         return {
             "mode": mode,
-            "query_text": text if has_text else None,
             "generated_caption": caption,
-            "per_arm": arm_results,
-            "fused_ranked": fused,
+            "fused_ranked": fused_ranked,
+            "identified_plant": identified_plant,
         }

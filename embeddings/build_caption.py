@@ -10,7 +10,7 @@ from text_embedder import TextEmbedder
 
 IMAGES_DIR = "data/images/*"
 OUT_INDEX = "backend/vector_stores/caption_faiss/index.faiss"
-OUT_META = "backend/vector_stores/caption_faiss/metadata.json"
+OUT_META  = "backend/vector_stores/caption_faiss/metadata.json"
 
 
 def clean_llava_output(text):
@@ -20,17 +20,17 @@ def clean_llava_output(text):
 
 
 def build_caption_index():
-    print("\nBuilding Captions\n")
+    print("\nBuilding Caption FAISS store...\n")
 
     paths = sorted(glob.glob(IMAGES_DIR))
     if not paths:
-        raise RuntimeError("No images found in data/images.")
+        raise RuntimeError("No images found in data/images")
 
     llava = LLaVANextCaptioner()
     embedder = TextEmbedder()
 
-    vectors = []
     metadata = []
+    vectors = []
 
     for i, img_path in enumerate(paths):
         img = Image.open(img_path).convert("RGB")
@@ -40,15 +40,21 @@ def build_caption_index():
 
         vec = embedder.embed(caption)
 
-        vectors.append(vec)
+        plant_id = img_path.split("/")[-1].split("\\")[-1].split(".")[0].lower()
+        plant_name = plant_id.replace("_", " ").title()
+
         metadata.append({
             "id": f"caption_{i}",
             "source": "caption",
             "image_path": img_path,
-            "caption": caption
+            "caption": caption,
+            "plant_id": plant_id,
+            "plant_name": plant_name
         })
 
-        print(f"  captioned {i+1}/{len(paths)}")
+        vectors.append(vec)
+
+        print(f" captioned {i+1}/{len(paths)}")
 
     matrix = np.vstack(vectors).astype("float32")
     dim = matrix.shape[1]
@@ -61,7 +67,7 @@ def build_caption_index():
     with open(OUT_META, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2, ensure_ascii=False)
 
-    print("\n-Saved caption index + metadata-\n")
+    print("\nSaved caption index + metadata\n")
 
 
 if __name__ == "__main__":
