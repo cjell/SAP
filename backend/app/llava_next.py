@@ -24,7 +24,7 @@ class LLaVANextCaptioner:
             bnb_4bit_quant_type="nf4",
         )
 
-        print("-Loading LLaVA Model (4-bit, GPU)-")
+        print("-Loading LLaVA Model-")
         self.model = LlavaNextForConditionalGeneration.from_pretrained(
             model_path,
             quantization_config=self.bnb_config,
@@ -45,7 +45,7 @@ class LLaVANextCaptioner:
 
         self.max_new_tokens = 200
 
-        print("-LLaVA Loaded Successfully (GPU, 4-bit)-")
+        print("-LLaVA Loaded-")
 
     def caption(self, image: Image.Image) -> str:
 

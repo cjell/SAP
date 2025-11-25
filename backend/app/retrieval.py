@@ -1,5 +1,3 @@
-# backend/app/retrieval.py
-
 from __future__ import annotations
 from typing import List, Dict, Any
 from pathlib import Path
@@ -14,18 +12,6 @@ from .dinov2 import DinoV2
 
 
 class Retriever:
-    """
-    Unified FAISS-based retriever for:
-      - text_faiss: JSON/PDF/metadata text chunks (used as LLM context)
-      - caption_faiss: LLaVA captions embedded as text
-      - image_faiss: DINO image embeddings
-
-    Router uses:
-      - search_image + search_caption (+ optional search_text)
-        for plant identification via RRF
-      - search_text for pulling plant-related docs by name or query
-    """
-
     def __init__(
         self,
         text_embedder: TextEmbedder,
@@ -38,33 +24,23 @@ class Retriever:
 
         base_path = Path(base_dir)
 
-        # -----------------------
-        # TEXT STORE
-        # -----------------------
+
         text_dir = base_path / "text_faiss"
         self.text_index = faiss.read_index(str(text_dir / "index.faiss"))
         with open(text_dir / "metadata.json", "r", encoding="utf-8") as f:
             self.text_metadata: List[Dict[str, Any]] = json.load(f)
 
-        # -----------------------
-        # CAPTION STORE
-        # -----------------------
+  
         cap_dir = base_path / "caption_faiss"
         self.captions_index = faiss.read_index(str(cap_dir / "index.faiss"))
         with open(cap_dir / "metadata.json", "r", encoding="utf-8") as f:
             self.captions_metadata: List[Dict[str, Any]] = json.load(f)
 
-        # -----------------------
-        # IMAGE STORE
-        # -----------------------
         img_dir = base_path / "image_faiss"
         self.images_index = faiss.read_index(str(img_dir / "index.faiss"))
         with open(img_dir / "metadata.json", "r", encoding="utf-8") as f:
             self.images_metadata: List[Dict[str, Any]] = json.load(f)
 
-    # ======================================================
-    # TEXT SEARCH
-    # ======================================================
     def search_text(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         if not query or not query.strip():
             return []
@@ -81,7 +57,6 @@ class Retriever:
             meta["faiss_distance"] = float(dist)
             meta["rank"] = rank
 
-            # Always preserve the correct ID
             meta["id"] = meta.get("id", f"text_{idx}")
             meta["source"] = meta.get("source", "text")
 
@@ -89,9 +64,7 @@ class Retriever:
 
         return results
 
-    # ======================================================
-    # CAPTION SEARCH
-    # ======================================================
+
     def search_caption(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         if not query or not query.strip():
             return []
@@ -115,9 +88,7 @@ class Retriever:
 
         return results
 
-    # ======================================================
-    # IMAGE SEARCH
-    # ======================================================
+ 
     def search_image(self, image: Image.Image, top_k: int = 5) -> List[Dict[str, Any]]:
         if image is None:
             return []

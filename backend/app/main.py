@@ -1,8 +1,7 @@
-# backend/app/main.py
-
 import os
 from uuid import uuid4
 from typing import Optional, List, Dict, Any
+from fastapi.middleware.cors import CORSMiddleware
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -16,9 +15,6 @@ from .router import Router
 from .memory import MemoryStore
 from .utils import decode_base64_image, extract_text_field
 
-# --------------------
-# Load .env + OpenAI
-# --------------------
 load_dotenv()
 client = OpenAI()
 
@@ -28,15 +24,17 @@ GPT_MODEL = os.getenv("GPT_MODEL", "gpt-4.1-mini")
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY not set in .env")
 
-# --------------------
-# FastAPI app
-# --------------------
+
 app = FastAPI(title="Sap — Nepal Plant Multimodal RAG")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# --------------------
-# Request / Response Models
-# --------------------
 class QueryRequest(BaseModel):
     text: Optional[str] = None
     image_base64: Optional[str] = None
@@ -60,26 +58,15 @@ class QueryResponse(BaseModel):
     retrieved: List[RetrievedItem]
 
 
-# --------------------
-# Initialize global singletons
-# --------------------
-print("=== Loading Router, Memory, Models, FAISS... ===")
+
+print("-Loading Router, Memory, Models, FAISS-")
 router = Router()
 memory = MemoryStore()
-print("=== Initialization complete ===\n")
+print("-Everything is Loaded-\n")
 
 
-# --------------------
-# GPT Wrapper
-# --------------------
 def call_gpt(messages: List[Dict[str, str]]) -> str:
-    """
-    messages = [
-        {"role": "system", "content": "..."},
-        {"role": "user", "content": "..."},
-        ...
-    ]
-    """
+
     response = client.chat.completions.create(
         model=GPT_MODEL,
         messages=messages,
@@ -90,20 +77,15 @@ def call_gpt(messages: List[Dict[str, str]]) -> str:
     return response.choices[0].message.content
 
 
-# --------------------
-# API Endpoint
-# --------------------
 @app.post("/query", response_model=QueryResponse)
 def query(req: QueryRequest):
 
-    # -------- Validate Input --------
     if not req.text and not req.image_base64:
         raise HTTPException(400, "Provide text and/or image_base64")
 
     session_id = req.session_id or str(uuid4())
     user_text = req.text.strip() if req.text else None
 
-    # -------- Decode Image --------
     pil_image: Optional[Image.Image] = None
     if req.image_base64:
         try:
@@ -111,7 +93,6 @@ def query(req: QueryRequest):
         except Exception as e:
             raise HTTPException(400, f"Invalid base64 image: {e}")
 
-    # -------- Run Router --------
     route_out = router.handle_query(
         text=user_text,
         image=pil_image,
@@ -123,25 +104,20 @@ def query(req: QueryRequest):
     fused_all = route_out.get("fused_ranked", []) or []
     identified_plant = route_out.get("identified_plant")
 
-    # We still only send top-3 fused items as "retrieved" context to GPT
     fused = fused_all[:3]
 
-    # -------- Try to determine plant candidate --------
-    # Priority 1: explicit identified_plant from router
+  
     plant_candidate: Optional[Dict[str, Any]] = None
     if identified_plant:
         plant_candidate = identified_plant
     else:
-        # Priority 2: first fused item from plant_metadata
         for item in fused_all:
             if item.get("source") == "plant_metadata":
                 plant_candidate = item
                 break
 
-    # -------- Build Context for GPT --------
     context_blocks: List[str] = []
 
-    # If we have a plant candidate, include its metadata explicitly
     if plant_candidate:
         pname = (
             plant_candidate.get("plant_name")
@@ -154,9 +130,7 @@ def query(req: QueryRequest):
             f"Plant details: {ptext}"
         )
 
-    # Then add fused context snippets (e.g., additional metadata entries)
     for idx, item in enumerate(fused):
-        # Avoid duplicating the primary plant_candidate block if same object
         if plant_candidate is not None and item is plant_candidate:
             continue
         textval = extract_text_field(item)
@@ -164,7 +138,6 @@ def query(req: QueryRequest):
 
     context_str = "\n\n".join(context_blocks) if context_blocks else "No retrieved context."
 
-    # -------- User Query for GPT --------
     if user_text:
         question = user_text
     elif caption:
@@ -175,38 +148,39 @@ def query(req: QueryRequest):
     system_msg = {
         "role": "system",
         "content": (
-            "You are Sap, an assistant focused on plant identification and ethnobotanical knowledge "
-            "from Nepal. Use the retrieved context carefully, avoid hallucination, and be concise. "
-            "If you are not confident about the plant identity or its uses, clearly say you are unsure."
+            "You are SAP (this is your name, say it if asked what you are or what your name is), a friendly and knowledgeable plant-identification, "
+            "agricultural, ecological,and ethnobotany assistant. You behave like a normal conversational agent "
+            "but with special expertise in Nepalese plants. You may use internal "
+            "context (retrieved text, image caption) but NEVER mention them or imply "
+            "that they came from a machine. Always speak naturally to the user."
+            "If the user asks about plant/ecological topics, you may answer, but steer towards your specialty."
+            "Do not use special formatting, lists, bullets, or latex."
         ),
     }
+    internal_context_msg = {
+        "role": "assistant",
+        "content": (
+            f"[INTERNAL CONTEXT – DO NOT REVEAL]\n"
+            f"Image understanding: {caption or 'No image'}\n"
+            f"Plant candidate: {plant_candidate or 'None'}\n"
+            f"Retrieved knowledge:\n{context_str}\n"
+        )
+}
 
-    # Pull memory
     past = memory.get(session_id)
 
-    # Build final GPT messages
     user_msg = {
         "role": "user",
-        "content": (
-            f"User question: {question}\n\n"
-            f"Image caption (from vision model): {caption or 'N/A'}\n\n"
-            f"Retrieved context:\n{context_str}\n\n"
-            "Use the plant candidate and the retrieved context to answer. "
-            "If the context does not support a claim, do NOT invent facts. "
-            "Answer clearly and accurately. If unsure, say so."
-        ),
+        "content": user_text or "What plant is this?",
     }
 
-    messages = [system_msg] + past + [user_msg]
+    messages = [system_msg] + past + [internal_context_msg, user_msg]
 
-    # -------- GPT Call --------
     gpt_answer = call_gpt(messages)
 
-    # Update memory
     memory.append(session_id, "user", question)
     memory.append(session_id, "assistant", gpt_answer)
 
-    # -------- Build Output Format --------
     retrieved_clean: List[RetrievedItem] = []
     for item in fused:
         textval = extract_text_field(item)

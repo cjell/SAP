@@ -2,7 +2,6 @@ import sys, json, faiss
 import numpy as np
 from PyPDF2 import PdfReader
 
-# allow local imports
 sys.path.append("backend/app")
 from text_embedder import TextEmbedder
 

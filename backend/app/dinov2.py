@@ -20,7 +20,7 @@ class DinoV2:
 
         self.model.eval()
 
-        print("-DINO Loaded Successfully-")
+        print("-DINO Loaded-")
 
     def embed_image(self, image: Image.Image) -> np.ndarray:
 
