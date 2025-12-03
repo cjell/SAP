@@ -1,5 +1,6 @@
 import torch
 from PIL import Image
+
 from transformers import (
     LlavaNextProcessor,
     LlavaNextForConditionalGeneration,
@@ -8,7 +9,7 @@ from transformers import (
 
 
 class LLaVANextCaptioner:
-    def __init__(self, model_path="backend/models/llava-next"):
+    def __init__(self, model_path="models/llava-next"):
 
         print("-Loading LLaVA Processor-")
         self.processor = LlavaNextProcessor.from_pretrained(

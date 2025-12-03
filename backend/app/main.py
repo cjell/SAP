@@ -2,6 +2,9 @@ import os
 from uuid import uuid4
 from typing import Optional, List, Dict, Any
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import UploadFile, File
+from fastapi.responses import StreamingResponse
+import io
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -206,4 +209,33 @@ def query(req: QueryRequest):
         caption=caption,
         answer=gpt_answer,
         retrieved=retrieved_clean,
+    )
+
+@app.post("/stt")
+async def stt_endpoint(file: UploadFile = File(...)):
+    audio_bytes = await file.read()
+
+    transcript = client.audio.transcriptions.create(
+        model="whisper-1",
+        file=("audio.wav", audio_bytes)
+    )
+
+    return {"text": transcript.text}
+
+class TTSRequest(BaseModel):
+    text: str
+
+@app.post("/tts")
+async def tts_endpoint(req: TTSRequest):
+    audio = client.audio.speech.create(
+        model="gpt-4o-mini-tts",
+        voice="alloy",
+        input=req.text,
+    )
+
+    audio_bytes = audio.read()
+
+    return StreamingResponse(
+        io.BytesIO(audio_bytes),
+        media_type="audio/wav"
     )

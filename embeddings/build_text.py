@@ -77,7 +77,7 @@ def load_plant_metadata(path):
 
 
 def build_text_index():
-    print("\nBuilding Text FAISS store...\n")
+    print("\n-Building Text FAISS store-\n")
 
     pdf_chunks, pdf_meta = extract_pdf_chunks(PDF_PATH)
     plant_chunks, plant_meta = load_plant_metadata(PLANT_PATH)

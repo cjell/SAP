@@ -4,7 +4,7 @@ from PIL import Image
 from transformers import AutoImageProcessor, AutoModel
 
 class DinoV2:
-    def __init__(self, model_path="backend/models/dino"):
+    def __init__(self, model_path="models/dino"):
         print("-Loading DINO Processor-")
         self.processor = AutoImageProcessor.from_pretrained(
             model_path,

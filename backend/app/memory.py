@@ -5,8 +5,6 @@ Role = Literal["user", "assistant", "system"]
 
 
 class MemoryStore:
-
-
     def __init__(self, max_turns: int = 10, max_chars: int = 4000):
         self._store: Dict[str, List[Dict[str, str]]] = {}
         self.max_turns = max_turns

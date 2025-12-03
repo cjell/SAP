@@ -7,23 +7,30 @@ import numpy as np
 import faiss
 from PIL import Image
 
+from .text_embedder import TextEmbedder
+from .dinov2 import DinoV2
+
 
 class Retriever:
     def __init__(
         self,
-        router,
+        text_embedder: TextEmbedder,
+        dino: DinoV2,
         base_dir: str = "vector_stores"
     ) -> None:
 
-        self.router = router
+        self.text_embedder = text_embedder
+        self.dino = dino
 
         base_path = Path(base_dir)
+
 
         text_dir = base_path / "text_faiss"
         self.text_index = faiss.read_index(str(text_dir / "index.faiss"))
         with open(text_dir / "metadata.json", "r", encoding="utf-8") as f:
             self.text_metadata: List[Dict[str, Any]] = json.load(f)
 
+  
         cap_dir = base_path / "caption_faiss"
         self.captions_index = faiss.read_index(str(cap_dir / "index.faiss"))
         with open(cap_dir / "metadata.json", "r", encoding="utf-8") as f:
@@ -34,19 +41,11 @@ class Retriever:
         with open(img_dir / "metadata.json", "r", encoding="utf-8") as f:
             self.images_metadata: List[Dict[str, Any]] = json.load(f)
 
-    def search_text(self, query, top_k: int = 5) -> List[Dict[str, Any]]:
-
-        if query is None:
+    def search_text(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+        if not query or not query.strip():
             return []
 
-        if isinstance(query, str):
-            if not query.strip():
-                return []
-            vec = np.array(self.router.run_text_embed(query), dtype="float32").reshape(1, -1)
-
-        else:
-            vec = np.array(query, dtype="float32").reshape(1, -1)
-
+        vec = self.text_embedder.embed(query).astype("float32").reshape(1, -1)
         distances, indices = self.text_index.search(vec, top_k)
 
         results = []
@@ -57,6 +56,7 @@ class Retriever:
             meta = dict(self.text_metadata[idx])
             meta["faiss_distance"] = float(dist)
             meta["rank"] = rank
+
             meta["id"] = meta.get("id", f"text_{idx}")
             meta["source"] = meta.get("source", "text")
 
@@ -64,19 +64,12 @@ class Retriever:
 
         return results
 
-    def search_caption(self, query, top_k: int = 5) -> List[Dict[str, Any]]:
 
-        if query is None:
+    def search_caption(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+        if not query or not query.strip():
             return []
 
-        if isinstance(query, str):
-            if not query.strip():
-                return []
-            vec = np.array(self.router.run_text_embed(query), dtype="float32").reshape(1, -1)
-
-        else:
-            vec = np.array(query, dtype="float32").reshape(1, -1)
-
+        vec = self.text_embedder.embed(query).astype("float32").reshape(1, -1)
         distances, indices = self.captions_index.search(vec, top_k)
 
         results = []
@@ -87,6 +80,7 @@ class Retriever:
             meta = dict(self.captions_metadata[idx])
             meta["faiss_distance"] = float(dist)
             meta["rank"] = rank
+
             meta["id"] = meta.get("id", f"caption_{idx}")
             meta["source"] = meta.get("source", "caption")
 
@@ -94,23 +88,25 @@ class Retriever:
 
         return results
 
-    def search_image(self, image_vec, top_k: int = 5) -> List[Dict[str, Any]]:
-
-        if image_vec is None:
+ 
+    def search_image(self, image: Image.Image, top_k: int = 5) -> List[Dict[str, Any]]:
+        if image is None:
             return []
 
-        vec = np.array(image_vec, dtype="float32").reshape(1, -1)
+        img_rgb = image.convert("RGB")
+        vec = self.dino.embed_image(img_rgb).astype("float32").reshape(1, -1)
 
         distances, indices = self.images_index.search(vec, top_k)
 
         results = []
         for rank, (idx, dist) in enumerate(zip(indices[0], distances[0])):
             if idx < 0 or idx >= len(self.images_metadata):
-                continue
+                continue    
 
             meta = dict(self.images_metadata[idx])
             meta["faiss_distance"] = float(dist)
             meta["rank"] = rank
+
             meta["id"] = meta.get("id", f"image_{idx}")
             meta["source"] = meta.get("source", "image")
 
