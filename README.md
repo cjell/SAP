@@ -1,8 +1,12 @@
-# SAP
-**Multimodal Retrieval-Augmented Generation for Plant Identification and Reasoning**
+<h1 align="center">SAP</h1>
 
+<p align="center">
+  <strong>Multimodal Retrieval-Augmented Generation for Plant Identification and Reasoning</strong>
+</p>
 
-<img src="https://github.com/user-attachments/assets/1da43f8d-f1df-4533-99c4-c38c87069ad8" width="600">
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/1da43f8d-f1df-4533-99c4-c38c87069ad8" width="600">
+</p>
 
 
 
