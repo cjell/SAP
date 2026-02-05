@@ -1,3 +1,5 @@
+# Builds vectorstore for image caption embeddings produced by LLaVA-Next
+
 import sys, json, faiss
 import numpy as np
 from PIL import Image
