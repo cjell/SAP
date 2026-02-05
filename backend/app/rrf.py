@@ -1,3 +1,6 @@
+# Function for Ranked Reciprocal Fusion
+# Balances retrieved data for multimodal queries since different data modalities are in unique vector_stores
+
 from typing import Dict, List, Any, Tuple
 
 def fuse_results_rrf(
