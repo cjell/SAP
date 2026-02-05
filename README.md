@@ -1,14 +1,14 @@
-# NepalRAG  
+# SAP
 **Multimodal Retrieval-Augmented Generation for Plant Identification and Reasoning**
 
-NepalRAG is a **multimodal retrieval-augmented generation (RAG) pipeline** designed for **image-based plant identification and ecological reasoning**, with a focus on Nepalese flora.  
+SAP is a **multimodal retrieval-augmented generation (RAG) pipeline** designed for **image-based plant identification and ecological reasoning**, with a focus on Nepalese flora.  
 The system integrates **visual embeddings, language-based descriptions, and structured metadata** to produce grounded, explainable responses based on retrieved evidence rather than free-form generation.
 
 ---
 
 ## Project Overview
 
-The goal of NepalRAG is to enable accurate and context-aware reasoning over plant data by combining:
+The goal of SAP is to enable accurate and context-aware reasoning over plant data by combining:
 
 - **Plant images**
 - **LLM-generated textual descriptions**
