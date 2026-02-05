@@ -1,3 +1,5 @@
+# Embeds text (articles) for textual retrieval
+
 import sys, json, faiss
 import numpy as np
 from PyPDF2 import PdfReader
