@@ -1,3 +1,5 @@
+# Handles routing logic based on query type: image, text, image+text
+
 from __future__ import annotations
 
 from typing import Optional, Dict, Any, List
