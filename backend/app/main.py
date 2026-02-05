@@ -1,3 +1,6 @@
+# Main loop for LLM Interaction
+# Handles queries by routing to respective files (DinoV2 and LLaVA-Next for images)
+
 
 import os
 from uuid import uuid4
@@ -52,10 +55,10 @@ class QueryResponse(BaseModel):
     retrieved: List[RetrievedItem]
 
 
-print("=== Loading Router, Memory, Models, FAISS... ===")
+print("-- Loading Router, Memory, Models, FAISS... --")
 router = Router()
 memory = MemoryStore()
-print("=== Initialization complete ===\n")
+print("-- Initialization complete --\n")
 
 
 
@@ -69,7 +72,7 @@ def call_gpt(messages):
     return response.choices[0].message.content
 
 
-
+# Endpoint for frontend to hit
 @app.post("/query", response_model=QueryResponse)
 def query(req: QueryRequest):
 
