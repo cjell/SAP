@@ -1,1 +1,3 @@
-# SAP - Multimodal RAG System Providing Localized Ecological Information for Nepal
+# SAP
+
+## Multimodal RAG System Providing Localized Ecological Information for Nepal
