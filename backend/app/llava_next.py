@@ -1,3 +1,6 @@
+# Loads LLaVA-Next with Quantization so it can run on local 5080.
+# Provides Prompt for Image Description
+
 import torch
 from PIL import Image
 

@@ -1,3 +1,6 @@
+# Runs and loads DinoV2
+# Embeds Images
+
 import torch
 import numpy as np
 from PIL import Image

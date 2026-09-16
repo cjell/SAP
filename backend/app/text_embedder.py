@@ -1,3 +1,5 @@
+# Handles text embeddings with sentencetransformer
+
 import torch
 import numpy as np
 from sentence_transformers import SentenceTransformer

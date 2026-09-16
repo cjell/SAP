@@ -1,3 +1,6 @@
+# Handles retrieval to vector databases (/vectorstores)
+
+
 from __future__ import annotations
 from typing import List, Dict, Any
 from pathlib import Path

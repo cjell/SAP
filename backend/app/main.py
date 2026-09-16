@@ -84,7 +84,7 @@ def call_gpt(messages: List[Dict[str, str]]) -> str:
 
     return response.choices[0].message.content
 
-
+# Endpoint for frontend to hit
 @app.post("/query", response_model=QueryResponse)
 def query(req: QueryRequest):
 
