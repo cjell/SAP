@@ -11,9 +11,8 @@ from .rrf import fuse_results_rrf
 class Router:
     """Decides which arms to run for a query and fuses what comes back.
 
-    The three vision/text models are hosted on a HF Space rather than loaded
-    locally - the laptop running this can't hold LLaVA and DINO at once, and the
-    demo machine had no GPU at all.
+    The three vision/text models are called over HTTP from a HF Space rather than
+    loaded in-process, so this side stays light enough to run anywhere.
     """
 
     def __init__(self):
