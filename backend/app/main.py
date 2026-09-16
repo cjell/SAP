@@ -24,12 +24,15 @@ client = OpenAI()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GPT_MODEL = os.getenv("GPT_MODEL", "gpt-4.1-mini")
 
+# fail at boot rather than halfway through the first live demo question
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY not set in .env")
 
 
 app = FastAPI(title="Sap — Nepal Plant Multimodal RAG")
 
+# wide open because the frontend is served from vite on another port. Would need
+# pinning down before this went anywhere public.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -62,6 +65,8 @@ class QueryResponse(BaseModel):
 
 
 
+# loaded once at import, not per request - reading the FAISS stores back off disk
+# for every question was adding seconds to the response
 print("-Loading Router, Memory, Models, FAISS-")
 router = Router()
 memory = MemoryStore()
@@ -107,9 +112,12 @@ def query(req: QueryRequest):
     fused_all = route_out.get("fused_ranked", []) or []
     identified_plant = route_out.get("identified_plant")
 
-    fused = fused_all[:3]
+    fused = fused_all[:3]  # keeps the prompt small enough to stay under max_tokens
 
   
+    # the router only sets identified_plant on the image path. For text-only
+    # questions, fall back to the best hit that came out of the plant json rather
+    # than a loose chunk of the PDF.
     plant_candidate: Optional[Dict[str, Any]] = None
     if identified_plant:
         plant_candidate = identified_plant
@@ -135,7 +143,7 @@ def query(req: QueryRequest):
 
     for idx, item in enumerate(fused):
         if plant_candidate is not None and item is plant_candidate:
-            continue
+            continue  # already in the block above, no point paying for it twice
         textval = extract_text_field(item)
         context_blocks.append(f"[{idx+1}] ({item.get('source')}) {textval}")
 
@@ -160,6 +168,9 @@ def query(req: QueryRequest):
             "Do not use special formatting, lists, bullets, or latex."
         ),
     }
+    # the retrieved context goes in as an assistant turn, not a user or system one.
+    # As a user turn the model tends to answer the context instead of the question,
+    # and it leaks it back verbatim far more often.
     internal_context_msg = {
         "role": "assistant",
         "content": (
@@ -181,9 +192,12 @@ def query(req: QueryRequest):
 
     gpt_answer = call_gpt(messages)
 
+    # store the question, which for an image-only turn is the stand-in above
+    # rather than anything the user typed
     memory.append(session_id, "user", question)
     memory.append(session_id, "assistant", gpt_answer)
 
+    # sent back alongside the answer so the sources are inspectable from the client
     retrieved_clean: List[RetrievedItem] = []
     for item in fused:
         textval = extract_text_field(item)
@@ -211,6 +225,7 @@ def query(req: QueryRequest):
         retrieved=retrieved_clean,
     )
 
+# voice in / voice out. Both just proxy to OpenAI so the browser never sees the key.
 @app.post("/stt")
 async def stt_endpoint(file: UploadFile = File(...)):
     audio_bytes = await file.read()

@@ -7,6 +7,8 @@ Role = Literal["user", "assistant", "system"]
 
 
 class MemoryStore:
+    """Chat history per session. In-process only, so a server restart wipes it."""
+
     def __init__(self, max_turns: int = 10, max_chars: int = 4000):
         self._store: Dict[str, List[Dict[str, str]]] = {}
         self.max_turns = max_turns
@@ -24,6 +26,8 @@ class MemoryStore:
         if len(self._store[session_id]) > self.max_turns:
             self._store[session_id] = self._store[session_id][-self.max_turns :]
 
+        # second cap on raw characters - a couple of long answers can blow the
+        # prompt budget well before max_turns is anywhere near hit
         while sum(len(m["content"]) for m in self._store[session_id]) > self.max_chars:
             if self._store[session_id]:
                 self._store[session_id].pop(0)

@@ -35,12 +35,14 @@ class DinoV2:
         with torch.inference_mode():
             outputs = self.model(**inputs)
 
+        # token 0 is the CLS token, DINOv2's global descriptor for the whole
+        # image. The patch tokens after it are per-region and not useful here.
         last_hidden = outputs.last_hidden_state  
         cls_embedding = last_hidden[:, 0, :]
 
         vec = cls_embedding.squeeze().float().cpu().numpy()
 
-        vec = vec / np.linalg.norm(vec)
+        vec = vec / np.linalg.norm(vec)  # unit length to match the IP index
 
         return vec
     

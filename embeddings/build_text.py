@@ -13,6 +13,8 @@ PLANT_PATH = "data/plant_data.json"
 OUT_INDEX = "backend/vector_stores/text_faiss/index.faiss"
 OUT_META  = "backend/vector_stores/text_faiss/metadata.json"
 
+# plain character window, not sentence aware. The overlap is there so a fact that
+# straddles a boundary still shows up whole in one of the two chunks.
 CHUNK_SIZE = 450
 CHUNK_OVERLAP = 80
 
@@ -53,6 +55,8 @@ def extract_pdf_chunks(path):
     return chunks, meta
 
 
+# the curated per-species writeups, kept separate from the PDF prose by their
+# source tag so the backend can prefer them when naming a plant
 def load_plant_metadata(path):
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -81,6 +85,8 @@ def load_plant_metadata(path):
 def build_text_index():
     print("\n-Building Text FAISS store-\n")
 
+    # both sources land in one index - the source field on each row is what keeps
+    # them distinguishable later
     pdf_chunks, pdf_meta = extract_pdf_chunks(PDF_PATH)
     plant_chunks, plant_meta = load_plant_metadata(PLANT_PATH)
 
@@ -102,6 +108,8 @@ def build_text_index():
 
     print(f"Matrix shape: {matrix.shape}")
 
+    # flat inner product - the corpus is small enough that an exact scan is quick,
+    # and the embedder hands back unit vectors so IP is cosine here
     index = faiss.IndexFlatIP(dim)
     index.add(matrix)
 
@@ -110,7 +118,7 @@ def build_text_index():
     with open(OUT_META, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2, ensure_ascii=False)
 
-    print("\nSaved text index + metadata\n")
+    print("\nfinished text index + metadata\n")
 
 
 if __name__ == "__main__":

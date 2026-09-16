@@ -13,8 +13,9 @@ OUT_META  = "backend/vector_stores/image_faiss/metadata.json"
 
 
 def build_image_index():
-    print("\nBuilding Image FAISS store...\n")
+    print("\n-Building Image FAISS store-\n")
 
+    # sorted so the ids stay stable between rebuilds
     paths = sorted(glob.glob(IMAGES_DIR))
     if not paths:
         raise RuntimeError("No images found in data/images")
@@ -28,6 +29,8 @@ def build_image_index():
         img = Image.open(img_path).convert("RGB")
         vec = dino.embed_image(img)
 
+        # filenames are the join key across all three stores, so data/images has to
+        # stay named Genus_species.jpg or nothing lines up at query time
         plant_id = img_path.split("/")[-1].split("\\")[-1].split(".")[0].lower()
         plant_name = plant_id.replace("_", " ").title()
 

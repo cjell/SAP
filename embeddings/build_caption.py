@@ -15,6 +15,8 @@ OUT_INDEX = "backend/vector_stores/caption_faiss/index.faiss"
 OUT_META  = "backend/vector_stores/caption_faiss/metadata.json"
 
 
+# the processor decodes the prompt back out along with the answer, so cut
+# everything up to the assistant turn
 def clean_llava_output(text):
     if "assistant" in text:
         text = text.split("assistant", 1)[-1]
@@ -22,12 +24,14 @@ def clean_llava_output(text):
 
 
 def build_caption_index():
-    print("\nBuilding Caption FAISS store...\n")
+    print("\n-Building Caption FAISS store-\n")
 
     paths = sorted(glob.glob(IMAGES_DIR))
     if not paths:
         raise RuntimeError("No images found in data/images")
 
+    # slowest of the three builds by a mile - every reference photo goes through
+    # the 7B captioner before it gets embedded
     llava = LLaVANextCaptioner()
     embedder = TextEmbedder()
 
@@ -40,6 +44,8 @@ def build_caption_index():
         raw = llava.caption(img)
         caption = clean_llava_output(raw)
 
+        # embedded as text, which is the whole point: it puts a photo into the
+        # same space as a typed description so the two can be compared
         vec = embedder.embed(caption)
 
         plant_id = img_path.split("/")[-1].split("\\")[-1].split(".")[0].lower()

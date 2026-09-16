@@ -19,6 +19,8 @@ class TextEmbedder:
         )
     def embed(self, text: str) -> np.ndarray:
 
+        # e5 was trained with "query:" / "passage:" prefixes and retrieval
+        # noticeably degrades without them
         formatted = "query: " + text.strip()
 
         with torch.inference_mode():
@@ -31,6 +33,9 @@ class TextEmbedder:
 
         vec = embedding.cpu().numpy()
 
+        # normalising by hand instead of letting sentence-transformers do it, so
+        # the zero vector case doesn't come back as nan. FAISS uses IndexFlatIP,
+        # and inner product on unit vectors is just cosine similarity.
         norm = np.linalg.norm(vec)
         if norm == 0:
             return vec

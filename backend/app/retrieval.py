@@ -12,6 +12,13 @@ from PIL import Image
 
 
 class Retriever:
+    """Thin wrapper over the three FAISS stores.
+
+    Each store ships as an index.faiss plus a metadata.json written at build time,
+    and row i of the index lines up with entry i of that list. Rebuilding one
+    without the other silently returns the wrong plants, so they travel together.
+    """
+
     def __init__(
         self,
         router,
@@ -42,6 +49,8 @@ class Retriever:
         if query is None:
             return []
 
+        # takes either raw text or an already-embedded vector, since the router
+        # sometimes has one in hand and there's no point paying for the call twice
         if isinstance(query, str):
             if not query.strip():
                 return []
@@ -54,9 +63,11 @@ class Retriever:
 
         results = []
         for rank, (idx, dist) in enumerate(zip(indices[0], distances[0])):
+            # faiss pads with -1 when the store holds fewer than top_k rows
             if idx < 0 or idx >= len(self.text_metadata):
                 continue
 
+            # copy, otherwise the scores below get written back into the store
             meta = dict(self.text_metadata[idx])
             meta["faiss_distance"] = float(dist)
             meta["rank"] = rank
@@ -97,6 +108,8 @@ class Retriever:
 
         return results
 
+    # image side only ever gets a vector - DINO runs on the remote space, so the
+    # router has already done the embedding by the time we get here
     def search_image(self, image_vec, top_k: int = 5) -> List[Dict[str, Any]]:
 
         if image_vec is None:
