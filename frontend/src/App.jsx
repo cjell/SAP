@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { Send, Plus, Mic, Square, Volume2, VolumeX } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+// the backend wants raw base64, so drop the "data:image/png;base64," prefix
+// that readAsDataURL puts on the front
 const fileToBase64 = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -36,6 +38,8 @@ export default function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isThinking]);
 
+  // paste straight from the clipboard - quicker than the file picker when you're
+  // screenshotting a plant off another tab
   useEffect(() => {
     const handlePaste = async (e) => {
       const item = [...e.clipboardData.items].find((i) =>
@@ -54,6 +58,7 @@ export default function App() {
 
   const playTTS = async (text, index) => {
     try {
+      // clicking the speaker on a bubble that's already talking stops it
       if (audioRef.current && isPlaying === index) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
@@ -113,6 +118,9 @@ export default function App() {
     const recorder = new MediaRecorder(stream);
     recorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
 
+    // chunks arrive as the recording runs, we only ship them once it stops.
+    // Labelled wav but chrome actually hands back webm - whisper reads the bytes
+    // rather than the name, so it goes through fine.
     recorder.onstop = () => {
       const audioBlob = new Blob(audioChunksRef.current, {
         type: "audio/wav",
@@ -135,6 +143,7 @@ export default function App() {
 
     if (!textToSend.trim() && !imageBase64) return;
 
+    // show the user's message right away, don't wait on the round trip
     setMessages((prev) => [
       ...prev,
       { role: "user", text: textToSend, image: imagePreview },
@@ -143,7 +152,7 @@ export default function App() {
     const payload = {
       text: textToSend || null,
       image_base64: imageBase64 || null,
-      session_id: "sap-session-1",
+      session_id: "sap-session-1",  // one fixed session, the demo never needed more
     };
 
     setInput("");
@@ -302,6 +311,8 @@ export default function App() {
   );
 }
 
+// isPlaying is tracked by index rather than a boolean so only the bubble that's
+// actually speaking flips its icon
 function MessageBubble({ role, text, image, index, isPlaying, onReplay }) {
   const isUser = role === "user";
 

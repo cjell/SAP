@@ -17,6 +17,7 @@ class LLaVANextCaptioner:
             use_fast=True
         )
 
+        # nf4 keeps the 7B captioner inside the VRAM we actually had
         print("-Configuring 4-bit quantization-")
         self.bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -35,6 +36,9 @@ class LLaVANextCaptioner:
 
         self.model.generation_config.pad_token_id = self.model.config.eos_token_id
 
+        # the "do NOT mention photography" half of this matters more than it looks:
+        # left alone LLaVA opens with "this image shows a close-up photo of...", and
+        # that boilerplate ends up dominating the caption embedding
         self.prompt_text = (
             "You are a plant identification expert. Describe this plant in a single "
             "coherent paragraph focusing ONLY on biological and morphological traits: "
@@ -76,7 +80,7 @@ class LLaVANextCaptioner:
             output_ids = self.model.generate(
                 **inputs,
                 max_new_tokens=self.max_new_tokens,
-                do_sample=False,
+                do_sample=False,  # greedy, so query captions match how the index was built
             )
 
         return self.processor.decode(output_ids[0], skip_special_tokens=True).strip()
